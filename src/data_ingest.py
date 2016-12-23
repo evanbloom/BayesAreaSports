@@ -71,13 +71,13 @@ class ingester (object):
             if game == "G": #Ignore header rows
                 pass
             else:
-                game_dict['game'].append(game)
+                game_dict['game'].append(int(game))
                 #Get wins
                 wins = row.find("td", {"data-stat":"wins"}).get_text()
-                game_dict['wins'].append(wins)
+                game_dict['wins'].append(int(wins))
                 # Get losses
                 losses = row.find("td", {"data-stat":"losses"}).get_text()
-                game_dict['losses'].append(losses)
+                game_dict['losses'].append(int(losses))
                 
         game_frame = pd.DataFrame.from_dict(game_dict)[["game", "wins", "losses"]]
         return game_frame
@@ -107,9 +107,9 @@ class ingester (object):
         for team in info:
             url = "http://www.basketball-reference.com/teams/{0}/{1}_games.html".format(team[1],year)
             team_season = ingester.get_team_season(url)
-            team_season['team'] = team[0]
-            team_season['short']= team[1]
-            team_season['year'] = year
+            team_season['team'] = str(team[0])
+            team_season['short']= str(team[1])
+            team_season['year'] = int(year)
             frames.append(team_season)
         season  = pd.concat(frames)
         return season
