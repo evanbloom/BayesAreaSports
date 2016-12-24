@@ -137,7 +137,7 @@ class ingester (object):
         conn = sqlite3.connect(self.db_path)
         historical = ingester.get_historical(years)
         historical.to_sql("historical", conn, index=False, if_exists='replace')
-        current = get_current_records()
+        current = ingester.get_current_records()
         current.to_sql("current", conn, index=False, if_exists='replace')
 
     def add_years(self, years):
@@ -148,7 +148,7 @@ class ingester (object):
         qry_str = "SELECT DISTINCT year FROM historical"
         present_years = pd.read_sql(qry_str, conn)['year'].tolist()
         years_toget =  [x for x in years if x not in present_years]
-        historical = get_historical(years_toget)
+        historical = ingester.get_historical(years_toget)
         historical.to_sql("historical", conn, index=False, if_exists='append')
         
     def add_current (self):
@@ -158,7 +158,7 @@ class ingester (object):
         conn = sqlite3.connect(self.db_path )
         qry_str = "SELECT * FROM current"
         all_current = pd.read_sql(qry_str, conn)
-        current = self.get_current_records()
+        current = ingester.get_current_records()
         all_current = pd.concat([all_current, current])
         all_current.drop_duplicates(inplace=True)
         all_current.to_sql("current", conn, index=False, if_exists='replace')
