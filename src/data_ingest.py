@@ -114,7 +114,7 @@ class ingester (object):
         season  = pd.concat(frames)
         season.reset_index(drop=True, inplace=True)
         season['pct'] = season.wins/season.game*1.0
-        season['percentile'] = season.groupby('game')['pct'].rank(ascending=False, pct=True, method ="first")
+        season['percentile'] = season.groupby('game')['pct'].rank(pct=True, method ="first")
         return season
 
     @staticmethod
