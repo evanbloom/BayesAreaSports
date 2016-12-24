@@ -126,7 +126,7 @@ class ingester (object):
         for year in years:
             result = ingester.get_historical_year(year)
             results.append(result)
-        historical_frame = pd.concat(results)[["year", "team", "short", "game", "wins", "losses"]]
+        historical_frame = pd.concat(results)[["year", "team", "short", "game", "wins", "losses", "pct", "percentile"]]
         return historical_frame
 
 
