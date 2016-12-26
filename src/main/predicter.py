@@ -24,7 +24,7 @@ class predicter (object):
         """
         qry_str = "SELECT pct FROM historical WHERE percentile BETWEEN {0} AND {1} AND game = 82". \
             format(str(min_percentile), str(max_percentile))
-        conn = sqlite3.connect(self.db_address )
+        conn = sqlite3.connect(self.db_path)
         win_pct = pd.read_sql(qry_str, conn)
         fitted = scipy.stats.beta.fit(win_pct, floc =0 , fscale = 1)
         alpha, beta = predicter.rescale_parameters (fitted[0], fitted[1], prior_games)
@@ -68,7 +68,7 @@ class predicter (object):
         """
         lookup_current current record of a team in db
         """
-        conn = sqlite3.connect(self, db_address )
+        conn = sqlite3.connect(self.db_path)
         qry_str = 'SELECT wins, losses FROM current WHERE short = "{0}"'.format(team)
         out = pd.read_sql(qry_str, conn)
         return out.wins[0], out.losses[0]
@@ -84,5 +84,5 @@ class predicter (object):
         ## updated priors
         alpha_prime = alpha + wins
         beta_prime = beta + losses
-        return predictor.cdf_record (alpha_prime, beta_prime, wins, losses)
+        return predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
     
