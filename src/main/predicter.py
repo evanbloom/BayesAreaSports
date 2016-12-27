@@ -16,18 +16,26 @@ class predicter (object):
         cur_scale = alpha + beta
         rescale = total / cur_scale
         return alpha * rescale, beta * rescale
+    
+    def get_wins (self, min_percentile, max_percentile):
+	qry_str = """SELECT team, season, short, wins, pct 
+		FROM historical 
+		WHERE percentile BETWEEN {0} AND {1} AND game = 82""". \
+            format(str(min_percentile), str(max_percentile))
+        conn = sqlite3.connect(self.db_path)
+        teams  = pd.read_sql(qry_str, conn)
+        return teams
 
-    def fit_beta (self, min_percentile, max_percentile, prior_games):
+    def fit_beta (self, min_percentile, max_percentile, prior_games = None):
         """
         Fit a beta distrubtion based on historical win pct for a teams between 
         a certain percentile in the league
         """
-        qry_str = "SELECT pct FROM historical WHERE percentile BETWEEN {0} AND {1} AND game = 82". \
-            format(str(min_percentile), str(max_percentile))
-        conn = sqlite3.connect(self.db_path)
-        win_pct = pd.read_sql(qry_str, conn)
+        win_pct = self.get_wins(min_percentile, max_percentile).pct
+        
         fitted = scipy.stats.beta.fit(win_pct, floc =0 , fscale = 1)
-        alpha, beta = predicter.rescale_parameters (fitted[0], fitted[1], prior_games)
+        if prior_games
+        	alpha, beta = predicter.rescale_parameters (fitted[0], fitted[1], prior_games)
         return alpha, beta
 
     @staticmethod
