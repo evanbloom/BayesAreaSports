@@ -18,7 +18,7 @@ class predicter (object):
         return alpha * rescale, beta * rescale
     
     def get_wins (self, min_percentile, max_percentile):
-	qry_str = """SELECT team, season, short, wins, pct 
+	qry_str = """SELECT team, year, short, wins, pct 
 		FROM historical 
 		WHERE percentile BETWEEN {0} AND {1} AND game = 82""". \
             format(str(min_percentile), str(max_percentile))
@@ -34,8 +34,8 @@ class predicter (object):
         win_pct = self.get_wins(min_percentile, max_percentile).pct
         
         fitted = scipy.stats.beta.fit(win_pct, floc =0 , fscale = 1)
-        if prior_games
-        	alpha, beta = predicter.rescale_parameters (fitted[0], fitted[1], prior_games)
+        if prior_games:
+            alpha, beta = predicter.rescale_parameters (fitted[0], fitted[1], prior_games)
         return alpha, beta
 
     @staticmethod
