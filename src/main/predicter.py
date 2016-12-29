@@ -100,8 +100,8 @@ class predicter (object):
         else:
             alpha_1, beta_1 = alpha, beta
         wins, losses = self.lookup_current (current_team)
-        alpha_prime = alpha + wins
-        beta_prime = beta + losses
+        alpha_prime = alpha_1 + wins
+        beta_prime = beta_1 + losses
         cdf = predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
 
         out = {}
