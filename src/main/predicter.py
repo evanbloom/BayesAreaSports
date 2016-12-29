@@ -17,27 +17,6 @@ class predicter (object):
         rescale = total / cur_scale
         return alpha * rescale, beta * rescale
     
-    def get_wins (self, min_percentile, max_percentile):
-	qry_str = """SELECT team, year, short, wins, pct 
-		FROM historical 
-		WHERE percentile BETWEEN {0} AND {1} AND game = 82""". \
-            format(str(min_percentile), str(max_percentile))
-        conn = sqlite3.connect(self.db_path)
-        teams  = pd.read_sql(qry_str, conn)
-        return teams
-
-    def fit_beta (self, min_percentile, max_percentile, prior_games = None):
-        """
-        Fit a beta distrubtion based on historical win pct for a teams between 
-        a certain percentile in the league
-        """
-        win_pct = self.get_wins(min_percentile, max_percentile).pct
-        
-        fitted = scipy.stats.beta.fit(win_pct, floc =0 , fscale = 1)
-        if prior_games:
-            alpha, beta = predicter.rescale_parameters (fitted[0], fitted[1], prior_games)
-        return alpha, beta
-
     @staticmethod
     def create_params (p, N):
         """
@@ -80,17 +59,55 @@ class predicter (object):
         qry_str = 'SELECT wins, losses FROM current WHERE short = "{0}"'.format(team)
         out = pd.read_sql(qry_str, conn)
         return out.wins[0], out.losses[0]
+
+    def get_wins (self, min_percentile, max_percentile):
+        qry_str = """SELECT team, year, short, wins, pct 
+        FROM historical 
+        WHERE percentile BETWEEN {0} AND {1} AND game = 82""". \
+            format(str(min_percentile), str(max_percentile))
+        conn = sqlite3.connect(self.db_path)
+        teams  = pd.read_sql(qry_str, conn)
+        return teams
+
+    def fit_beta (self, wins_frame):
+        """
+        Fit a beta distrubtion based on historical win pct for a teams between 
+        a certain percentile in the league
+        """
+        win_pct = wins_frame.pct
         
-    def update_projection (self, min_percentile, max_percentile, prior_games, current_team):
+        fitted = scipy.stats.beta.fit(win_pct, floc =0 , fscale = 1)
+        return fitted
+
+        
+    def update_projection (self, alpha, beta, current_team):
         """
         Update a project for a team, based on an emperical, range and strength (and team name)
         """
-        # emperical priors
-        alpha, beta = self.fit_beta(min_percentile, max_percentile, prior_games)
         ## get current record of team
         wins, losses = self.lookup_current (current_team)
         ## updated priors
         alpha_prime = alpha + wins
         beta_prime = beta + losses
         return predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
-    
+
+    def vis_data (self, min_percentile, max_percentile, current_team, prior_games = None):
+        wins_frame = self.get_wins(min_percentile, max_percentile)
+        fitted = self.fit_beta(wins_frame)
+        alpha, beta = fitted[0], fitted[1]
+        if prior_games:
+            alpha_1, beta_1 = predicter.rescale_parameters(alpha, beta, prior_games)
+        else:
+            alpha_1, beta_1 = alpha, beta
+        wins, losses = self.lookup_current (current_team)
+        alpha_prime = alpha + wins
+        beta_prime = beta + losses
+        cdf = predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
+
+        out = {}
+        out['prior_hist'] = wins_frame
+        out['prior'] = (alpha, beta)
+        out['prior_rescaled'] = (alpha_1, beta_1)
+        out['posterior'] = (alpha_prime, beta_prime)
+        out['cdf'] = cdf
+        return out
