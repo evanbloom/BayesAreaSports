@@ -1,6 +1,7 @@
 import pandas as pd
 import sqlite3
 import scipy.stats
+import numpy as np
 
 class predicter (object):
 
@@ -98,22 +99,22 @@ class predicter (object):
         beta_prime = beta + losses
         return predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
 
-    def calc_sensitivity (self, current_team, win_thresh = 50, min_pct = 0, max_pct = 1, by_pct = 0.5,
+    def calc_sensitivity (self, current_team, win_thresh = 50, min_pct = .05, max_pct = .95, by_pct = 0.05,
             min_we = 5, max_we = 100, by_we = 5, n_games = 82):
         wins, losses = self.lookup_current (current_team) 
-        remaining_games = n_games - (cur_wins + cur_losses)
+        remaining_games = n_games - (wins + losses)
         remaining_wins = win_thresh - wins
         remaining_pct = remaining_wins*1.0 / remaining_games
-        pct_range = range(min_pct, max_pct + by_pct, by_pct)
-        we_range = range(min_we, max_we + by_we, by_we)
+        pct_range = np.arange(min_pct, max_pct + by_pct, by_pct)
+        we_range = np.arange(min_we, max_we + by_we, by_we)
         
-        out = {"alpha":[], "beta":[], "prob":[]}
+        out = {"pct":[], "we":[], "prob":[]}
         for pct in pct_range:
             for we in we_range:
-                alpha, beta = create_params (pct, we)
+                alpha, beta = predicter.create_params (pct, we)
                 prob = scipy.stats.beta.sf(remaining_pct, alpha , beta)
-                out['alpha'].append(alpha)
-                out['beta'].append(beta)
+                out['pct'].append(pct)
+                out['we'].append(we)
                 out['prob'].append(prob)
         return out 
 

@@ -26,7 +26,7 @@ tab2 = Panel( child =layout(
 
 
 my_sensitivity_maker = sensitivity_maker()
-tab3 = Panel (child = my_sensitivity_maker.main(), "title" = "Explore Across Priors")
+tab3 = Panel (child = my_sensitivity_maker.main(), title = "Explore Across Priors")
 
 
 tabs = Tabs(tabs=[tab1, tab2, tab3])
