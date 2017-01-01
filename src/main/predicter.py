@@ -69,6 +69,13 @@ class predicter (object):
         teams  = pd.read_sql(qry_str, conn)
         return teams
 
+    def get_teams_list (self):
+        qry_str = """SELECT DISTINCT short FROM current"""
+        conn = sqlite3.connect(self.db_path)
+        teams  = pd.read_sql(qry_str, conn)
+        return teams.short.tolist()
+        
+
     def fit_beta (self, wins_frame):
         """
         Fit a beta distrubtion based on historical win pct for a teams between 
