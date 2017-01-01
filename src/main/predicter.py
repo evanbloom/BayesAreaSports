@@ -74,7 +74,7 @@ class predicter (object):
         conn = sqlite3.connect(self.db_path)
         teams  = pd.read_sql(qry_str, conn)
         return teams.short.tolist()
-        
+
 
     def fit_beta (self, wins_frame):
         """
@@ -97,6 +97,25 @@ class predicter (object):
         alpha_prime = alpha + wins
         beta_prime = beta + losses
         return predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
+
+    def calc_sensitivity (self, current_team, win_thresh = 50, min_pct = 0, max_pct = 1, by_pct = 0.5,
+            min_we = 5, max_we = 100, by_we = 5, n_games = 82):
+        wins, losses = self.lookup_current (current_team) 
+        remaining_games = n_games - (cur_wins + cur_losses)
+        remaining_wins = win_thresh - wins
+        remaining_pct = remaining_wins*1.0 / remaining_games
+        pct_range = range(min_pct, max_pct + by_pct, by_pct)
+        we_range = range(min_we, max_we + by_we, by_we)
+        
+        out = {"alpha":[], "beta":[], "prob":[]}
+        for pct in pct_range:
+            for we in we_range:
+                alpha, beta = create_params (pct, we)
+                prob = scipy.stats.beta.sf(remaining_pct, alpha , beta)
+                out['alpha'].append(alpha)
+                out['beta'].append(beta)
+                out['prob'].append(prob)
+        return out 
 
     def vis_data (self, min_percentile, max_percentile, current_team, prior_games = None):
         wins_frame = self.get_wins(min_percentile, max_percentile)
