@@ -57,7 +57,7 @@ class predicter (object):
         lookup_current current record of a team in db
         """
         conn = sqlite3.connect(self.db_path)
-        qry_str = 'SELECT wins, losses FROM current WHERE short = "{0}"'.format(team)
+        qry_str = 'SELECT MAX(wins) as wins, MAX(losses) as losses FROM current WHERE short = "{0}"'.format(team)
         out = pd.read_sql(qry_str, conn)
         return out.wins[0], out.losses[0]
 
@@ -100,7 +100,7 @@ class predicter (object):
         return predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
 
     def calc_sensitivity (self, current_team, win_thresh = 50, min_pct = .05, max_pct = .95, by_pct = 0.05,
-            min_we = 5, max_we = 100, by_we = 5, n_games = 82):
+            min_we = 1, max_we = 40, by_we = 1, n_games = 82):
         wins, losses = self.lookup_current (current_team) 
         remaining_games = n_games - (wins + losses)
         remaining_wins = win_thresh - wins
@@ -115,7 +115,7 @@ class predicter (object):
                 prob = scipy.stats.beta.sf(remaining_pct, alpha , beta)
                 out['pct'].append(pct)
                 out['we'].append(we)
-                out['prob'].append(prob)
+                out['prob'].append(round(prob*100,2))
         return out 
 
     def vis_data (self, min_percentile, max_percentile, current_team, prior_games = None):
@@ -132,6 +132,12 @@ class predicter (object):
         cdf = predicter.cdf_record (alpha_prime, beta_prime, wins, losses)
 
         out = {}
+        out['stats']= {
+            'wins':wins,
+            'losses': losses,
+            'emperical_win_pct': round( 100* alpha/ (alpha + beta),2) ,
+            'prior_ge': int(round(alpha + beta,0 ))
+        }
         out['prior_hist'] = wins_frame
         out['prior'] = (alpha, beta)
         out['prior_rescaled'] = (alpha_1, beta_1)

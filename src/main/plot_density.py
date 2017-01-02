@@ -11,7 +11,7 @@ import numpy as np
 import scipy
 import pandas as pd
 from predicter import predicter
-from bokeh.models.widgets import Panel, Tabs, TextInput
+from bokeh.models.widgets import Panel, Tabs, TextInput, PreText
 from bokeh.models import Range1d
 my_predicter = predicter("../../data/nba.db")
 
@@ -75,6 +75,7 @@ class tab_1_maker (object):
         self.p2.circle(x='cdf_x', y='cdf_y', source = self.cdf_source, size = 20)
         self.p2.set(x_range=Range1d(-2, 84), y_range=Range1d(-3, 103))
 
+        self.textbox = PreText(text='', width=self.size)
     def select_data(self):
         return my_predicter.vis_data (
             self.min_percentile.value,
@@ -105,6 +106,12 @@ class tab_1_maker (object):
                 cdf_x = data_dict['cdf'].wins ,
                 cdf_y = data_dict['cdf'].prob
         )
+        stats = data_dict['stats']
+        text_str = ( "Wins: "+ str(stats['wins']) + '\n' +
+            "Losses: "+ str(stats['losses']) + '\n' +
+            "Emperical Win Pct: "+ str(stats['emperical_win_pct']) + '%' + '\n' +
+            "Emperical Game Equivalent: "+ str(stats['prior_ge'])) 
+        self.textbox.text = text_str
 
     def main(self, org="H"):
         controls = [self.min_percentile, self.max_percentile, self.select_team, self.game_equivalent]
@@ -117,12 +124,14 @@ class tab_1_maker (object):
         if org== "H":
             l1 = layout([
             [inputs],
+            [self.textbox],
             [self.p1, self.p2],
             ], sizing_mode=sizing_mode)
 
         else:
             l1 = layout([
             [inputs],
+            [self.textbox],
             [self.p1], 
             [self.p2],
             ], sizing_mode=sizing_mode)
