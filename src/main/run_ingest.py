@@ -17,7 +17,7 @@ args = parser.parse_args()
 
 ingest = ingester(args.db_path)
 if args.type_update == 0:
-	ingest.add_current
+	ingest.add_current()
 elif  args.type_update == 1:
 	years = range(args.min_year, args.max_year +1 )
 	ingest.init_database(years)

@@ -65,21 +65,39 @@ class ingester (object):
         html = response.read()
         soup = BeautifulSoup(html, 'html.parser')
         records = soup.find("div", {"id":"all_games"}).find_all("tr")
-        game_dict= {"game":[], "wins":[], "losses":[]}
+        game_dict= {"game":[], "wins":[], "losses":[], 
+                "opp":[], "win_game":[], "home":[],
+                "pf":[], "pa":[]}
         for row in records:
             game= row.find("th", {"data-stat":"g"}).get_text()
             if game == "G": #Ignore header rows
                 pass
             else:
                 game_dict['game'].append(int(game))
+                #Get Opp
+                opp = row.find("td", {"data-stat":"opp_name"})["csk"][0:3]
+                game_dict['opp'].append(opp)
+                #Home
+                home = 1*(row.find("td", {"data-stat":"game_location"}).get_text() == "@")
+                game_dict['home'].append(home)
+                ## WIN
+                win = 1*(row.find("td", {"data-stat":"game_result"}).get_text() == "W")
+                game_dict['win_game'].append(win)
                 #Get wins
                 wins = row.find("td", {"data-stat":"wins"}).get_text()
                 game_dict['wins'].append(int(wins))
                 # Get losses
                 losses = row.find("td", {"data-stat":"losses"}).get_text()
                 game_dict['losses'].append(int(losses))
+                # Points For
+                pts = row.find("td", {"data-stat":"pts"}).get_text()
+                game_dict['pf'].append(int(pts))
+                # Points against
+                pa = row.find("td", {"data-stat":"opp_pts"}).get_text()
+                game_dict['pa'].append(int(pts))
                 
-        game_frame = pd.DataFrame.from_dict(game_dict)[["game", "wins", "losses"]]
+        game_frame = pd.DataFrame.from_dict(game_dict)[["game", "wins", "losses", "opp", 
+        "win_game", "home", "pf", "pa"]]
         return game_frame
 
 
@@ -126,7 +144,8 @@ class ingester (object):
         for year in years:
             result = ingester.get_historical_year(year)
             results.append(result)
-        historical_frame = pd.concat(results)[["year", "team", "short", "game", "wins", "losses", "pct", "percentile"]]
+        historical_frame = pd.concat(results)[["year", "team", "short", "game", "wins", "losses", "pct", "percentile", 
+        "opp", "win_game", "home"]]
         return historical_frame
 
 
