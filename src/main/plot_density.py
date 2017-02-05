@@ -52,7 +52,7 @@ class tab_1_maker (object):
 
         self.p1 = figure(title="Density Fuctions", tools="save",
                    background_fill="#E8DDCB", width= self.size, plot_height=self.size)
-        self.p1.legend.location = "top_left"
+        self.p1.legend.location = "top_right"
         self.p1.xaxis.axis_label = 'Winning Percentage'
         self.p1.yaxis.axis_label = 'Likelihod of prior'
         self.p1.quad(top="top", bottom=0, left="left", right="right", source= self.hist_source, line_color="#033649")
