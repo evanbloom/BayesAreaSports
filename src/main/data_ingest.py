@@ -65,39 +65,25 @@ class ingester (object):
         html = response.read()
         soup = BeautifulSoup(html, 'html.parser')
         records = soup.find("div", {"id":"all_games"}).find_all("tr")
-        game_dict= {"game":[], "wins":[], "losses":[], 
-                "opp":[], "win_game":[], "home":[],
-                "pf":[], "pa":[]}
+        game_dict= {"game":[], "wins":[], "losses":[],'date':[]}
         for row in records:
             game= row.find("th", {"data-stat":"g"}).get_text()
             if game == "G": #Ignore header rows
                 pass
             else:
                 game_dict['game'].append(int(game))
-                #Get Opp
-                opp = row.find("td", {"data-stat":"opp_name"})["csk"][0:3]
-                game_dict['opp'].append(opp)
-                #Home
-                home = 1*(row.find("td", {"data-stat":"game_location"}).get_text() == "@")
-                game_dict['home'].append(home)
-                ## WIN
-                win = 1*(row.find("td", {"data-stat":"game_result"}).get_text() == "W")
-                game_dict['win_game'].append(win)
                 #Get wins
                 wins = row.find("td", {"data-stat":"wins"}).get_text()
                 game_dict['wins'].append(int(wins))
                 # Get losses
                 losses = row.find("td", {"data-stat":"losses"}).get_text()
                 game_dict['losses'].append(int(losses))
-                # Points For
-                pts = row.find("td", {"data-stat":"pts"}).get_text()
-                game_dict['pf'].append(int(pts))
-                # Points against
-                pa = row.find("td", {"data-stat":"opp_pts"}).get_text()
-                game_dict['pa'].append(int(pts))
-                
-        game_frame = pd.DataFrame.from_dict(game_dict)[["game", "wins", "losses", "opp", 
-        "win_game", "home", "pf", "pa"]]
+                # Game Date
+                date = row.find("td", {"data-stat":"date_game"})['csk']
+                date = int(date.replace("-",""))
+                game_dict['date'].append(date)
+
+        game_frame = pd.DataFrame.from_dict(game_dict)[["game", "wins", "losses", "date"]]
         return game_frame
 
 
@@ -144,10 +130,108 @@ class ingester (object):
         for year in years:
             result = ingester.get_historical_year(year)
             results.append(result)
-        historical_frame = pd.concat(results)[["year", "team", "short", "game", "wins", "losses", "pct", "percentile", 
-        "opp", "win_game", "home"]]
+        historical_frame = pd.concat(results)[["year", "team", "short", "game", "wins", "losses", "pct", "percentile", "date"]]
         return historical_frame
 
+    @staticmethod
+    def get_games_month(year, month):
+        season_month_url = "http://www.basketball-reference.com/leagues/NBA_{0}_games-{1}.html".format(year, month)
+        response = urllib2.urlopen(season_month_url)
+        html = response.read()
+        soup = BeautifulSoup(html, 'html.parser')
+        schedule= soup.find("div", {"id":"div_schedule"}).tbody.find_all("tr")
+        results = {'date':[], 'home':[], 'away':[], 'home_pts':[], 'away_pts':[]}
+        for row in schedule:
+            try:
+                # Date
+                date = row.find("th", {"data-stat":"date_game"})['csk']
+                date = str(date)[:-4]
+                results['date'].append(int(date))
+                #Home team
+                home = row.find("td", {"data-stat":"home_team_name"}).find("a")["href"]
+                home = str(home)[7:10]
+                results['home'].append(home) 
+                #Vistor team
+                away = row.find("td", {"data-stat":"visitor_team_name"}).find("a")["href"]
+                away = str(away)[7:10]
+                results['away'].append(away)
+                #Home Points
+                home_pts = row.find("td", {"data-stat":"home_pts"}).get_text()
+                home_pts = int(home_pts)
+                results['home_pts'].append(home_pts)
+                #
+                away_pts = row.find("td", {"data-stat":"visitor_pts"}).get_text()
+                away_pts = int(away_pts)
+                results['away_pts'].append(away_pts)
+            except:
+                pass
+        return pd.DataFrame.from_dict(results)
+
+    @staticmethod
+    def get_games_season(year):
+        months = ["october", "november", "december", "january", "february", "march", "april", "may", "june"]
+        season_dfs = [] 
+        for month in months:
+            print year, month
+            try:
+                season_dfs.append(ingester.get_games_month(year,month))
+            except:
+                print "missing"
+                pass
+        season_df = pd.concat(season_dfs).reset_index()
+        season_df.sort_values('date', inplace=True)
+        season_df['home_win'] = 1*(season_df['home_pts'] > season_df['away_pts'])
+        season_df['winner'] = season_df.apply(lambda x: x['home'] if x['home_win'] else x['away'],1 )
+        season_df['loser'] = season_df.apply(lambda x: x['away'] if x['home_win'] else x['home'],1 )
+        return season_df
+
+    @staticmethod
+    def season_games_engineer_winloss (season_df):
+        winners =  season_df[["date","winner"]]
+        winners["win"] = 1
+        winners["loss"] = 0
+        winners.rename(index= str, columns={"winner":"team"}, inplace = True)
+                       
+        losers =  season_df[["date","loser"]]
+        losers["win"] = 0
+        losers["loss"] = 1
+        losers.rename(index= str, columns={"loser":"team"} , inplace = True)
+                       
+        team_record = pd.concat([winners, losers]).sort_values("date").reset_index(drop=True)
+        cum_stat = team_record.sort_values("date").groupby("team").cumsum()
+        team_record["cum_wins"] = cum_stat['win']
+        team_record["cum_losses"] = cum_stat['loss']
+        team_record["cum_games"] =  team_record["cum_wins"] +  team_record["cum_losses"]
+        team_record['win_pct'] =  team_record["cum_wins"]*1.0/team_record["cum_games"]
+                                                                          
+        team_record.drop(["win", "loss"], axis =1, inplace = True)
+        
+        season_df = pd.merge(season_df, team_record, 
+            left_on= ["date", "home"],
+            right_on = ["date", "team"],
+            suffixes = ("", "_home")
+        ) 
+        
+        season_df = pd.merge(season_df, team_record, 
+        left_on= ["date", "away"],
+        right_on = ["date", "team"],
+        suffixes = ("", "_away")
+        )
+        season_df.drop(["team", "team_away"], axis =1, inplace = True)
+        season_df.rename(index= str,
+            columns={"cum_losses":"cum_losses_home",
+            "cum_wins":"cum_wins_home"  ,  
+            "cum_games":"cum_games_home",    
+            "win_pct":"win_pct" }, inplace = True)
+        return  season_df
+
+    @staticmethod
+    def get_historical_games (years):
+        game_years = []
+        for year in years:
+            season_df = ingester.get_games_season(year)
+            game_years.append(ingester.season_games_engineer_winloss(season_df))
+        return pd.concat(game_years)
 
     def init_database (self, years):
         """
@@ -156,6 +240,8 @@ class ingester (object):
         conn = sqlite3.connect(self.db_path)
         historical = ingester.get_historical(years)
         historical.to_sql("historical", conn, index=False, if_exists='replace')
+        games = ingester.get_historical_games(years)
+        games.to_sql("games", conn, index=False, if_exists='replace')
         current = ingester.get_current_records()
         current.to_sql("current", conn, index=False, if_exists='replace')
 
@@ -167,6 +253,8 @@ class ingester (object):
         qry_str = "SELECT DISTINCT year FROM historical"
         present_years = pd.read_sql(qry_str, conn)['year'].tolist()
         years_toget =  [x for x in years if x not in present_years]
+        games = ingester.get_historical_games(years_toget)
+        games.to_sql("games", conn, index=False, if_exists='append')
         historical = ingester.get_historical(years_toget)
         historical.to_sql("historical", conn, index=False, if_exists='append')
         
